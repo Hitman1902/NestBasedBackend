@@ -1,7 +1,14 @@
-import { Controller, Post, Body, UnauthorizedException } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Body,
+  UnauthorizedException,
+  Res,
+} from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { UsersService } from 'src/users/users.service';
 import { CreateUserDto } from 'src/dtos/create-user.dto';
+import { Response } from 'express';
 @Controller('auth')
 export class AuthController {
   constructor(
@@ -17,7 +24,10 @@ export class AuthController {
     return user;
   }
   @Post('login')
-  async login(@Body() createUserDto: CreateUserDto) {
+  async login(
+    @Body() createUserDto: CreateUserDto,
+    @Res({ passthrough: true }) res: Response,
+  ) {
     const user = await this.usersService.findByEmail(createUserDto.email);
     if (!user) {
       throw new UnauthorizedException('Invalid credentials');
@@ -31,9 +41,17 @@ export class AuthController {
       throw new UnauthorizedException('Invalid credentials');
     }
     const token = this.authService.login(user);
+    res.cookie('token', token);
     return {
       user,
       token,
+    };
+  }
+  @Post('logout')
+  logout(@Res({ passthrough: true }) res: Response) {
+    res.clearCookie('token');
+    return {
+      message: 'Logged out successfully',
     };
   }
 }
