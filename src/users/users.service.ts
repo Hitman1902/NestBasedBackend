@@ -1,17 +1,23 @@
 import { Injectable } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { DatabaseService } from '../database/database.service';
 import { User } from './user.entity';
 import * as bcrypt from 'bcrypt';
 @Injectable()
 export class UsersService {
-  constructor(@InjectRepository(User) private repo: Repository<User>) {}
-  async create(email: string, password: string) {
+  constructor(private readonly databaseService: DatabaseService) {}
+  async create(email: string, password: string): Promise<User> {
     const hashedPassword = await bcrypt.hash(password, 10);
-    const user = this.repo.create({ email, password: hashedPassword });
-    return this.repo.save(user);
+    const result = await this.databaseService.query<User>(
+      'INSERT INTO users (email, password) VALUES ($1, $2) RETURNING *',
+      [email, hashedPassword],
+    );
+    return result[0];
   }
-  findByEmail(email: string) {
-    return this.repo.findOne({ where: { email } });
+  async findByEmail(email: string): Promise<User | undefined> {
+    const result = await this.databaseService.query<User>(
+      'SELECT * FROM users WHERE email = $1',
+      [email],
+    );
+    return result[0];
   }
 }
